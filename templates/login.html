@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="auth-container mt-5 px-3 py-4">
+    <div class="text-center mb-4">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="IRRS Logo" height="60">
+        <h2 class="mt-2">Welcome to IRRS</h2>
+        <p class="small text-muted">Login to access your dashboard and revision insights.</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} small">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('login') }}" class="auth-form">
+        <!-- Email -->
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control" placeholder="you@example.com" required>
+        </div>
+
+        <!-- Password -->
+        <div class="mb-3 position-relative">
+            <label class="form-label">Password</label>
+            <input type="password" name="password" id="loginPassword" class="form-control" placeholder="Enter your password" required>
+            <span class="password-toggle" onclick="togglePassword('loginPassword','toggleLogin')">
+                <i id="toggleLogin" class="bi bi-eye-fill"></i>
+            </span>
+        </div>
+
+        <a href="{{ url_for('forgot_password') }}" class="d-block mt-1 mb-3 small text-decoration-none">Forgot Password?</a>
+
+        <button type="submit" class="btn btn-primary w-100 btn-lg">Login</button>
+
+        <p class="text-center mt-3 small">
+            Don't have an account? <a href="{{ url_for('register') }}">Sign Up</a>
+        </p>
+    </form>
+</div>
+
+<!-- Styles -->
+<style>
+.auth-container {
+    max-width: 400px;
+    margin: 50px auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
+.auth-form .form-label { font-weight: bold; }
+.auth-form input { width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; border: 1px solid #ccc; }
+.auth-form button { margin-top: 15px; }
+.password-toggle {
+    cursor: pointer;
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.3rem;
+    color: #555;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+.password-toggle:hover {
+    color: #000;
+    transform: translateY(-50%) scale(1.2);
+}
+.alert { margin-top: 10px; }
+@media (max-width: 576px) {
+    .auth-container { margin: 30px 15px; padding: 20px; }
+    .password-toggle { font-size: 1.5rem; right: 10px; }
+    .btn-lg { font-size: 1.1rem; padding: 12px; }
+}
+</style>
+
+<!-- Scripts -->
+<script>
+function togglePassword(inputId, iconId){
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    if(input.type === "password"){
+        input.type = "text";
+        icon.classList.remove("bi-eye-fill");
+        icon.classList.add("bi-eye-slash-fill");
+    } else {
+        input.type = "password";
+        icon.classList.remove("bi-eye-slash-fill");
+        icon.classList.add("bi-eye-fill");
+    }
+}
+</script>
+
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+
+{% endblock %}

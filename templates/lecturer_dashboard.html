@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Lecturer Dashboard | IRRS{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- PAGE HEADER -->
+    <div class="text-center mb-4">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="IRRS Logo" height="80">
+        <h2 class="mt-2 fw-bold">📊 Lecturer Analytics Dashboard</h2>
+        <p class="text-muted">Track student performance and progress</p>
+    </div>
+
+    <!-- NAVIGATION -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light rounded mb-4 shadow-sm">
+        <div class="container-fluid justify-content-center">
+            <a class="nav-link active fw-bold" href="{{ url_for('lecturer_dashboard') }}">Dashboard</a>
+            <a class="nav-link" href="{{ url_for('recommendations_page') }}">Recommendations</a>
+            <a class="nav-link" href="{{ url_for('progress_page') }}">Progress</a>
+            <a class="nav-link text-danger" href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </nav>
+
+    <!-- KPI CARDS -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-4 col-md-6">
+            <div class="card shadow-sm h-100 text-center">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Students</h6>
+                    <h2 class="fw-bold">{{ total_students|default(0) }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <div class="card shadow-sm h-100 text-center">
+                <div class="card-body">
+                    <h6 class="text-muted">Class Average</h6>
+                    <h2 class="fw-bold text-primary">{{ avg_score|default(0) }}%</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-12">
+            <div class="card shadow-sm h-100 text-center">
+                <div class="card-body">
+                    <h6 class="text-muted">Students Below 50%</h6>
+                    <h2 class="fw-bold text-danger">{{ weak_count|default(0) }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI CLASS INSIGHT -->
+    <div class="alert shadow-sm 
+        {% if avg_score|default(0) >= 75 %}alert-success
+        {% elif avg_score|default(0) >= 60 %}alert-primary
+        {% elif avg_score|default(0) >= 50 %}alert-warning
+        {% else %}alert-danger{% endif %}">
+        <h5 class="mb-2">🤖 AI Class Insight</h5>
+        {% if avg_score|default(0) >= 75 %}
+            <p class="mb-0">The class is performing excellently. Maintain the current teaching strategy.</p>
+        {% elif avg_score|default(0) >= 60 %}
+            <p class="mb-0">The class performance is good. Focus on supporting weaker students.</p>
+        {% elif avg_score|default(0) >= 50 %}
+            <p class="mb-0">The class performance is moderate. Consider revising difficult units.</p>
+        {% else %}
+            <p class="mb-0">Class performance is low. Intervention strategies are recommended.</p>
+        {% endif %}
+    </div>
+
+    <!-- STUDENTS TABLE -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="mb-3">👨‍🎓 Student Scores & Progress</h5>
+            <div class="table-responsive">
+                <table class="table table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Average Score</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ student.full_name }}</td>
+                            <td>{{ student.email }}</td>
+                            <td>{{ student.avg|default(0) }}%</td>
+                            <td>
+                                {% if student.avg|default(0) >= 75 %}
+                                    <span class="badge bg-success">Excellent</span>
+                                {% elif student.avg|default(0) >= 60 %}
+                                    <span class="badge bg-primary">Good</span>
+                                {% elif student.avg|default(0) >= 50 %}
+                                    <span class="badge bg-warning text-dark">Average</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Weak</span>
+                                {% endif %}
+                                <a href="{{ url_for('lecturer_recommendations', student_id=student.id) }}" class="btn btn-sm btn-primary">
+                Add/View Recommendations
+            </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">No student records found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="row g-4">
+
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="text-center mb-3">📚 Unit Performance</h5>
+                    <canvas id="unitChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="text-center mb-3">📈 Pass vs Fail</h5>
+                    <canvas id="passChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<!-- JSON DATA -->
+<script type="application/json" id="units-data">{{ units|tojson|safe }}</script>
+<script type="application/json" id="averages-data">{{ averages|tojson|safe }}</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const units = JSON.parse(document.getElementById('units-data').textContent || '[]');
+    const averages = JSON.parse(document.getElementById('averages-data').textContent || '[]');
+    const totalStudents = Number("{{ total_students|default(0) }}");
+    const weakCount = Number("{{ weak_count|default(0) }}");
+    const passCount = totalStudents - weakCount;
+
+    // Unit Performance Chart
+    if (units.length > 0 && averages.length > 0) {
+        new Chart(document.getElementById('unitChart'), {
+            type: 'bar',
+            data: {
+                labels: units,
+                datasets: [{
+                    label: 'Average Score (%)',
+                    data: averages,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 100 } }
+            }
+        });
+    }
+
+    // Pass / Fail Chart
+    if (totalStudents > 0) {
+        new Chart(document.getElementById('passChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Pass', 'Fail'],
+                datasets: [{
+                    data: [passCount, weakCount],
+                    backgroundColor: ['rgba(75, 192, 192, 0.8)','rgba(255, 99, 132, 0.8)'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '60%',
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

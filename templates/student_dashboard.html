@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container py-4">
+
+    <!-- HEADER -->
+    <div class="text-center mb-4">
+        <h2>🎓 Student Dashboard</h2>
+        <p>Track your academic performance</p>
+    </div>
+
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light rounded shadow mb-4">
+        <div class="container-fluid justify-content-center">
+
+            <a class="nav-link fw-bold active"
+               href="{{ url_for('student_dashboard') }}">Dashboard</a>
+
+            <a class="nav-link"
+               href="{{ url_for('logout') }}">Logout</a>
+
+        </div>
+    </nav>
+
+
+    <!-- FLASH -->
+    <div id="flashMessages"></div>
+
+
+    <!-- ADD SCORE -->
+    <div class="card shadow mb-4">
+        <div class="card-body">
+
+            <h5 class="mb-3">➕ Add New Score</h5>
+
+            <form id="scoreForm">
+
+                <label>Unit</label>
+                <input type="text"
+                       name="unit"
+                       class="form-control mb-3"
+                       required>
+
+
+                <label>Topic</label>
+                <input type="text"
+                       name="topic"
+                       class="form-control mb-3"
+                       required>
+
+
+                <label>Score (%)</label>
+                <input type="number"
+                       name="score"
+                       min="0"
+                       max="100"
+                       class="form-control mb-3"
+                       required>
+
+
+                <button class="btn btn-primary w-100">
+                    Submit Score
+                </button>
+
+            </form>
+
+        </div>
+    </div>
+
+
+    <!-- SCORES TABLE -->
+    <div class="card shadow mb-4">
+        <div class="card-body">
+
+            <h5>Your Scores</h5>
+
+            <table class="table table-bordered table-striped mt-3">
+
+                <thead class="table-light">
+                    <tr>
+                        <th>Unit</th>
+                        <th>Topic</th>
+                        <th>Score</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+
+                <tbody id="scoresTable">
+                </tbody>
+
+            </table>
+
+        </div>
+    </div>
+
+
+    <!-- CHART -->
+    <div class="card shadow mb-4">
+        <div class="card-body">
+
+            <h5 class="text-center mb-3">
+                📊 Performance Chart
+            </h5>
+
+            <canvas id="performanceChart"></canvas>
+
+        </div>
+    </div>
+
+
+    <!-- RECOMMENDATIONS -->
+    <div class="card shadow mb-4">
+        <div class="card-body">
+
+            <h5 class="text-center mb-3">
+                🤖 Study Recommendations
+            </h5>
+
+            <div id="recommendations"></div>
+
+        </div>
+    </div>
+
+</div>
+
+
+
+<!-- CHATBOT -->
+<div style="position:fixed;bottom:20px;right:20px;z-index:999">
+
+    <button id="chatBtn"
+            class="btn btn-primary rounded-circle"
+            style="width:60px;height:60px">
+        💬
+    </button>
+
+    <div id="chatBox"
+         style="display:none;
+                width:300px;
+                height:400px;
+                background:white;
+                border-radius:10px;
+                box-shadow:0 0 10px #0003;
+                padding:10px">
+
+        <div id="chatMessages"
+             style="height:330px;overflow:auto"></div>
+
+        <input id="chatInput"
+               class="form-control mt-2"
+               placeholder="Ask something...">
+
+    </div>
+
+</div>
+
+
+<!-- SCRIPTS -->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ---------------- CHARTS & GLOBAL VARIABLES ----------------
+const overallCtx = document.getElementById('overallTrendChart');
+const topicCtx = document.getElementById('topicChart');
+let overallChart, topicChart;
+let weakTopics = [];
+
+// ---------------- UPDATE TOPICS ----------------
+function updateTopics() {
+    const unit = document.getElementById("unit").value;
+    const topicSelect = document.getElementById("topic");
+    topicSelect.innerHTML = '<option value="">Select Topic</option>';
+    const topics = {
+        programming: ["Variables & Data Types","Control Structures","Loops","Functions","OOP"],
+        data_structures: ["Arrays","Stacks","Queues","Linked Lists","Trees"],
+        database_systems: ["Normalization","SQL Queries","Joins","Indexing","Transactions"],
+        computer_networks: ["OSI Model","TCP/IP","Routing","Switching","Network Security"],
+        operating_systems: ["Process Management","Memory Management","Scheduling","Deadlocks"],
+        software_engineering: ["SDLC","Requirements Analysis","System Design","Testing"],
+        web_development: ["HTML & CSS","JavaScript","Forms & Validation","APIs"],
+        mobile_application_dev: ["Android Basics","Flutter Widgets","Layouts","State Management"],
+        information_security: ["Authentication","Encryption","Access Control","Threats & Attacks"],
+        artificial_intelligence: ["Search Algorithms","Machine Learning Basics","Classification","Neural Networks"],
+        systems_analysis: ["Feasibility Study","DFDs","UML Diagrams","Requirement Specification"]
+    };
+
+    if(topics[unit]) topics[unit].forEach(t=>{
+        const opt = document.createElement("option");
+        opt.value = t.toLowerCase().replace(/ /g,'_');
+        opt.textContent = t;
+        topicSelect.appendChild(opt);
+    });
+
+    // Add weak topics if not already present
+    weakTopics.forEach(w=>{
+        if(!Array.from(topicSelect.options).some(o=>o.value===w)){
+            const opt=document.createElement("option");
+            opt.value=w;
+            opt.textContent=w.replace(/_/g,' ');
+            topicSelect.appendChild(opt);
+        }
+    });
+}
+
+// ---------------- SUBMIT SCORE ----------------
+document.getElementById('scoreForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const formData = new FormData(this);
+    const customUnit = document.getElementById('custom_unit').value.trim();
+    const customTopic = document.getElementById('custom_topic').value.trim();
+    if(customUnit) formData.set('unit', customUnit);
+    if(customTopic) formData.set('topic', customTopic);
+
+    const res = await fetch('{{ url_for("add_score_ajax") }}', { method:'POST', body:formData });
+    const data = await res.json();
+
+    const flashDiv = document.getElementById('flashMessages');
+    if(data.success){
+        flashDiv.innerHTML=`<div class="alert alert-success alert-dismissible fade show">Score submitted successfully!<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+        this.reset();
+        updateProgress();
+    } else {
+        flashDiv.innerHTML=`<div class="alert alert-danger alert-dismissible fade show">${data.message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+    }
+});
+
+// ---------------- DELETE SCORE ----------------
+async function deleteScore(id){
+    if(!confirm('Delete this score?')) return;
+    const res = await fetch(`/delete_score/${id}`, { method:'POST' });
+    const data = await res.json();
+    if(data.success) updateProgress();
+    else alert('Failed to delete score');
+}
+
+async function deleteAllScores(){
+    if(!confirm('Delete ALL scores?')) return;
+    const res = await fetch(`/delete_all_scores`, { method:'POST' });
+    const data = await res.json();
+    if(data.success) updateProgress();
+    else alert('Failed to delete all scores');
+}
+
+// ---------------- UPDATE PROGRESS ----------------
+async function updateProgress(){
+    const res = await fetch('{{ url_for("progress_page") }}');
+
+    const data = await res.json();
+
+    const scores = data.scores || [];
+    weakTopics = scores.filter(s=>s.score<50).map(s=>s.topic.toLowerCase().replace(/ /g,'_'));
+
+    // ===== CHARTS =====
+    const labels = scores.map(s=>s.topic);
+    const marks = scores.map(s=>s.score);
+    const colors = marks.map(m=>m<50?'rgba(220,53,69,0.7)':m<60?'rgba(255,193,7,0.7)':'rgba(25,135,84,0.7)');
+
+    if(overallChart) overallChart.destroy();
+    overallChart = new Chart(overallCtx, {
+        type:'line',
+        data:{ labels, datasets:[{ label:'Marks (%)', data:marks, borderColor:'rgba(13,110,253,1)', backgroundColor:'rgba(13,110,253,0.2)', tension:0.4, fill:true, pointBackgroundColor:colors }]},
+        options:{ responsive:true, scales:{ y:{ beginAtZero:true, max:100 } } }
+    });
+
+    if(topicChart) topicChart.destroy();
+    topicChart = new Chart(topicCtx, {
+        type:'bar',
+        data:{ labels, datasets:[{ label:'Marks (%)', data:marks, backgroundColor:colors }]},
+        options:{ responsive:true, scales:{ y:{ beginAtZero:true, max:100 } } }
+    });
+
+    // ===== TABLE =====
+    const tableDiv = document.getElementById('scoresTable');
+    if(!scores.length){
+        tableDiv.innerHTML=`<div class="alert alert-warning">No scores entered yet.</div>`;
+    } else {
+        let html=`<table class="table table-striped"><thead><tr><th>Unit</th><th>Topic</th><th>Score</th><th>Action</th></tr></thead><tbody>`;
+        scores.forEach(s=>{
+            html+=`<tr class="${s.score<50?'table-danger':s.score<60?'table-warning':'table-success'}">
+                <td>${s.unit}</td>
+                <td style="cursor:pointer;color:#0d6efd;" onclick="getTopicTip('${s.topic}')">${s.topic}</td>
+                <td>${s.score}</td>
+                <td><button class="btn btn-sm btn-danger" onclick="deleteScore(${s.id})">Delete</button></td>
+            </tr>`;
+        });
+        html+=`</tbody></table>`;
+        tableDiv.innerHTML = html;
+    }
+
+    // ===== RECOMMENDATIONS =====
+    const container = document.getElementById('recommendationContent');
+    container.innerHTML='';
+    if(!scores.length){
+        container.innerHTML=`<div class="alert alert-warning">Not enough scores to generate recommendations.</div>`;
+    } else {
+        scores.forEach(s=>{
+            const alertClass = s.score<50?'alert-danger':s.score<60?'alert-warning':'alert-success';
+            container.innerHTML+=`<div class="alert ${alertClass} mt-2"><strong>${s.topic}</strong> – ${s.recommendation||'Keep studying!'}</div>`;
+        });
+    }
+}
+
+// ---------------- CHATBOT ----------------
+const chatbotToggle = document.getElementById('chatbotToggle');
+const chatbotWindow = document.getElementById('chatbotWindow');
+const chatbotMessages = document.getElementById('chatbotMessages');
+const chatbotInput = document.getElementById('chatbotInput');
+const chatbotSend = document.getElementById('chatbotSend');
+
+chatbotToggle.onclick = ()=>{chatbotWindow.style.display = chatbotWindow.style.display==='none'?'flex':'none';};
+
+chatbotSend.onclick = async ()=>{
+    const msg = chatbotInput.value.trim();
+    if(!msg) return;
+    chatbotMessages.innerHTML+=`<div><strong>You:</strong> ${msg}</div>`;
+    chatbotInput.value=''; chatbotMessages.scrollTop=chatbotMessages.scrollHeight;
+
+    try{
+        const res = await fetch('{{ url_for("student_chat") }}', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({question: msg})
+        });
+        const data = await res.json();
+        chatbotMessages.innerHTML+=`<div><strong>Bot:</strong> ${data.answer}</div>`;
+        chatbotMessages.scrollTop=chatbotMessages.scrollHeight;
+    } catch(err){
+        chatbotMessages.innerHTML+=`<div><strong>Bot:</strong> Sorry, something went wrong.</div>`;
+    }
+};
+
+chatbotInput.addEventListener('keypress', e=>{if(e.key==='Enter') chatbotSend.click();});
+
+// ---------------- INITIAL LOAD ----------------
+updateProgress();
+</script>
+
+{% endblock %}

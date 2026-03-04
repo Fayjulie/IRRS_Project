@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block title %}Progress | IRRS{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <!-- PAGE HEADER -->
+    <div class="text-center mb-4">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="IRRS Logo" height="80">
+        <h2 class="mt-2">Intelligent Revision Recommendation System</h2>
+        <p class="text-muted">Track your academic progress over time</p>
+    </div>
+
+    <!-- NAVIGATION -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light rounded mb-4 shadow-sm">
+        <div class="container-fluid justify-content-center">
+            <a class="nav-link" href="{{ url_for('student_dashboard') }}">Dashboard</a>
+            <a class="nav-link" href="{{ url_for('add_score_ajax') }}">Enter Scores</a>
+            <a class="nav-link" href="{{ url_for('recommendations_page') }}">Recommendations</a>
+            <a class="nav-link active fw-bold" href="{{ url_for('progress_page') }}">Progress</a>
+            <a class="nav-link text-danger" href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </nav>
+
+    <!-- SUMMARY CARDS -->
+    <div class="row text-center mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6>Average Score</h6>
+                    <h4 id="avgScore">0%</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6>GPA</h6>
+                    <h4 id="gpa">0.0</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6>Total Units</h6>
+                    <h4 id="totalUnits">0</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6>Weak Topics</h6>
+                    <h4 id="weakCount">0</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="text-center mb-3">📈 Overall Performance Trend</h5>
+                    <canvas id="overallTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="text-center mb-3">📚 Topic-wise Performance</h5>
+                    <canvas id="topicChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PERFORMANCE SUMMARY -->
+    <div class="card shadow-sm border-0 mt-4">
+        <div class="card-body text-center">
+            <h5>📌 Performance Summary</h5>
+            <p id="progressSummary" class="mt-3 fw-semibold"></p>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const overallCtx = document.getElementById('overallTrendChart');
+    const topicCtx = document.getElementById('topicChart');
+
+    let overallChart, topicChart;
+
+    function updateProgress(){
+
+        fetch('{{ url_for("progress_page") }}')
+
+        .then(res => res.json())
+        .then(data => {
+            
+            const subjects = data.subjects || [];
+            const marks = data.marks || [];
+
+            // ===== SUMMARY CARDS =====
+            const totalUnits = subjects.length;
+            const averageScore = totalUnits
+                ? (marks.reduce((a,b)=>a+b,0)/totalUnits).toFixed(2)
+                : 0;
+
+            const gpa =
+                averageScore >= 70 ? 4.0 :
+                averageScore >= 60 ? 3.0 :
+                averageScore >= 50 ? 2.0 :
+                averageScore > 0  ? 1.0 : 0.0;
+
+            const weakCount = data.weak.length || 0;
+
+            document.getElementById('avgScore').innerText = averageScore + '%';
+            document.getElementById('gpa').innerText = gpa;
+            document.getElementById('totalUnits').innerText = totalUnits;
+            document.getElementById('weakCount').innerText = weakCount;
+
+            // ===== CHART COLORS =====
+            const colors = marks.map(m =>
+                m < 40 ? 'rgba(220,53,69,0.7)' :  // weak
+                m < 70 ? 'rgba(255,193,7,0.7)' : // moderate
+                         'rgba(25,135,84,0.7)'   // strong
+            );
+
+            // ===== OVERALL TREND =====
+            if(overallChart) overallChart.destroy();
+
+            overallChart = new Chart(overallCtx, {
+                type: 'line',
+                data: {
+                    labels: subjects,
+                    datasets: [{
+                        label: 'Marks (%)',
+                        data: marks,
+                        borderColor: 'rgba(54,162,235,0.8)',
+                        backgroundColor: 'rgba(54,162,235,0.2)',
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: colors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true, max: 100 }
+                    }
+                }
+            });
+
+            // ===== TOPIC BAR CHART =====
+            if(topicChart) topicChart.destroy();
+
+            topicChart = new Chart(topicCtx, {
+                type: 'bar',
+                data: {
+                    labels: subjects,
+                    datasets: [{
+                        label: 'Marks (%)',
+                        data: marks,
+                        backgroundColor: colors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true, max: 100 }
+                    }
+                }
+            });
+
+            // ===== PERFORMANCE SUMMARY =====
+            const summary = document.getElementById('progressSummary');
+
+            if(!subjects.length){
+                summary.innerHTML = "⚠️ No data available yet. Please enter your scores.";
+            }
+            else if(averageScore >= 70){
+                summary.innerHTML = "🎉 Excellent progress! Keep maintaining your hard work.";
+            }
+            else if(averageScore >= 50){
+                summary.innerHTML = "💪 Good effort! Focus more on weak topics to improve further.";
+            }
+            else{
+                summary.innerHTML = "📘 Don't give up! Revise daily and seek academic support.";
+            }
+
+            // ===== RECOMMENDATIONS =====
+            const recContainer = document.getElementById('recommendationContent');
+            recContainer.innerHTML = '';
+            const allRecommendations = [...data.weak, ...data.moderate, ...data.strong];
+
+            if(!allRecommendations.length){
+                recContainer.innerHTML = `<div class="alert alert-warning">Not enough scores to generate recommendations.</div>`;
+            } else {
+                allRecommendations.forEach(r => {
+                    let alertClass = r.advice === "Focus more" ? 'alert-danger' :
+                                     r.advice === "Practice more" ? 'alert-warning' :
+                                     'alert-success';
+                    recContainer.innerHTML += `<div class="alert ${alertClass} mt-2">
+                        <strong>${r.topic}</strong> – ${r.advice}
+                    </div>`;
+                });
+            }
+
+        })
+        .catch(err => console.error("Error:", err));
+    }
+
+    // Load on start
+    updateProgress();
+
+});
+</script>
+
+{% endblock %}

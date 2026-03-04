@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% block title %}Recommendations | IRRS{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <!-- HEADER -->
+    <div class="text-center mb-4">
+        <img src="{{ url_for('static', filename='logo.png') }}" height="80">
+        <h2 class="mt-3">📘 Smart Study Recommendations</h2>
+        <p class="text-muted">Personalized academic guidance & AI Q&A</p>
+    </div>
+
+    <!-- NAVIGATION -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light rounded mb-4 shadow-sm">
+        <div class="container-fluid justify-content-center">
+            <a class="nav-link" href="{{ url_for('student_dashboard') }}">Dashboard</a>
+            <a class="nav-link" href="{{ url_for('add_score_ajax') }}">Enter Scores</a>
+            <a class="nav-link" href="{{ url_for('recommendations_page') }}">Recommendations</a>
+            <a class="nav-link active fw-bold" href="{{ url_for('progress_page') }}">Progress</a>
+            <a class="nav-link text-danger" href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </nav>
+
+    <!-- SUMMARY CARDS -->
+    <div class="row text-center mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6>📊 Average</h6>
+                    <h4 id="avgScore">0%</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6>📚 Total Units</h6>
+                    <h4 id="totalUnits">0</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6>🚨 Weak Areas</h6>
+                    <h4 id="weakCount">0</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MOTIVATION BOX -->
+    <div id="motivationBox" class="alert alert-info text-center fw-bold mb-4"></div>
+
+    <!-- PDF UPLOAD -->
+    <div class="mb-4">
+        <h5>📄 Upload PDF Notes</h5>
+        <form id="pdfForm">
+            <div class="input-group mb-2">
+                <input type="file" name="pdf_file" id="pdfFile" class="form-control" accept=".pdf" required>
+                <button class="btn btn-primary" type="submit">Upload</button>
+            </div>
+        </form>
+        <div id="pdfMessage"></div>
+    </div>
+
+    <!-- QUESTION BOX -->
+    <div class="mb-4">
+        <h5>💬 Ask a Question from Uploaded PDFs</h5>
+        <form id="questionForm">
+            <div class="input-group mb-2">
+                <input type="text" name="question" id="questionInput" class="form-control" placeholder="Type your question..." required>
+                <button class="btn btn-success" type="submit">Ask</button>
+            </div>
+        </form>
+        <div id="answerBox" class="alert alert-light" style="white-space: pre-line;"></div>
+    </div>
+
+    <!-- DOWNLOAD PDF BUTTON -->
+    <div class="text-center mb-4">
+        <button id="downloadPDF" class="btn btn-primary">
+            📥 Download Recommendations PDF
+        </button>
+    </div>
+
+    <!-- RECOMMENDATION CONTENT -->
+    <div id="recommendationContent"></div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<!-- jsPDF CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+
+    // ===== UPDATE RECOMMENDATIONS =====
+    function updateRecommendations(){
+fetch('{{ url_for("progress_page") }}')
+        .then(res => res.json())
+        .then(data => {
+
+            const scores = data.scores || [];
+            const marks = scores.map(s => s.score);
+            const total = scores.length;
+            const avg = total ? (marks.reduce((a,b)=>a+b,0)/total).toFixed(1) : 0;
+            const weak = scores.filter(s => s.score < 50);
+            const moderate = scores.filter(s => s.score >=50 && s.score <70);
+            const strong = scores.filter(s => s.score >=70);
+
+            // Summary Cards
+            document.getElementById("avgScore").innerText = avg+"%";
+            document.getElementById("totalUnits").innerText = total;
+            document.getElementById("weakCount").innerText = weak.length;
+
+            // Motivation
+            let motivation = "";
+            if(avg >= 75) motivation = "🌟 Excellent work! You are performing very well. Keep it up!";
+            else if(avg >= 60) motivation = "💪 Good progress! With more practice, you can reach excellence.";
+            else if(avg >= 50) motivation = "📘 Fair performance. Focus more on weak areas to improve.";
+            else motivation = "🔥 Don't give up! With effort and consistency, you will improve.";
+            document.getElementById("motivationBox").innerText = motivation;
+
+            // Recommendations
+            const container = document.getElementById("recommendationContent");
+            container.innerHTML = "";
+            if(!scores.length){
+                container.innerHTML = `<div class="alert alert-warning text-center">No data yet. Please enter your scores first.</div>`;
+                return;
+            }
+
+            function createCard(title, arr, alertClass){
+                let html = `<div class="alert ${alertClass} card p-3 mb-3"><h5>${title}</h5><ul>`;
+                arr.forEach(s=>{
+                    let suggestion = s.recommendation || "No suggestion available.";
+                    html += `<li><b>${s.topic}</b> (${s.score}%)
+                        <br>👉 ${suggestion.replaceAll("|","<br>👉 ")}</li><hr>`;
+                });
+                html += "</ul></div>";
+                return html;
+            }
+
+            if(weak.length) container.innerHTML += createCard("🚨 Weak Topics (Immediate Attention)", weak, "alert-danger");
+            if(moderate.length) container.innerHTML += createCard("⚠ Moderate Topics (Needs Improvement)", moderate, "alert-warning");
+            if(strong.length) container.innerHTML += createCard("✅ Strong Topics (Maintain Performance)", strong, "alert-success");
+
+        })
+        .catch(err => console.error("Recommendation Error:", err));
+    }
+
+    updateRecommendations();
+
+    // ===== DOWNLOAD PDF =====
+    document.getElementById("downloadPDF").addEventListener("click", function(){
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let y = 10;
+
+        doc.setFontSize(16);
+        doc.text("📘 My Personalized Recommendations", 10, y);
+        y += 10;
+
+        const avg = document.getElementById("avgScore").innerText;
+        const total = document.getElementById("totalUnits").innerText;
+        const weak = document.getElementById("weakCount").innerText;
+        doc.setFontSize(12);
+        doc.text(`Average Score: ${avg}`, 10, y); y+=6;
+        doc.text(`Total Units: ${total}`, 10, y); y+=6;
+        doc.text(`Weak Topics: ${weak}`, 10, y); y+=10;
+
+        const motivation = document.getElementById("motivationBox").innerText;
+        doc.text("Motivation: "+motivation, 10, y); y+=10;
+
+        const recs = document.querySelectorAll("#recommendationContent .alert");
+        recs.forEach(card=>{
+            const lines = doc.splitTextToSize(card.innerText, 180);
+            lines.forEach(line=>{
+                doc.text(line, 10, y);
+                y += 6;
+                if(y > 280){ doc.addPage(); y = 10; }
+            });
+            y += 5;
+        });
+
+        doc.save("Recommendations.pdf");
+    });
+
+    // ===== PDF UPLOAD =====
+    const pdfForm = document.getElementById("pdfForm");
+    pdfForm.addEventListener("submit", function(e){
+        e.preventDefault();
+        const fileInput = document.getElementById("pdfFile");
+        const file = fileInput.files[0];
+        if(!file){ alert("Select a PDF file!"); return; }
+
+        const formData = new FormData();
+        formData.append("pdf_file", file);
+
+        fetch("{{ url_for('upload_pdf') }}", {
+            method: "POST",
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            const msg = document.getElementById("pdfMessage");
+            if(data.success){
+                msg.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                fileInput.value = "";
+            } else {
+                msg.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+            }
+        })
+        .catch(err => console.error(err));
+    });
+
+    // ===== ASK QUESTION =====
+    const questionForm = document.getElementById("questionForm");
+    questionForm.addEventListener("submit", function(e){
+        e.preventDefault();
+        const question = document.getElementById("questionInput").value.trim();
+        if(!question){ return; }
+        const answerBox = document.getElementById("answerBox");
+        answerBox.innerHTML = "⏳ Thinking...";
+        fetch("{{ url_for('generate_quiz') }}", {
+            method: "POST",
+            headers: {"Content-Type":"application/x-www-form-urlencoded"},
+            body: "question="+encodeURIComponent(question)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success){
+                answerBox.innerHTML = data.answer;
+            } else {
+                answerBox.innerHTML = "❌ " + data.answer;
+            }
+        })
+        .catch(err => { answerBox.innerHTML = "❌ Error fetching answer."; console.error(err); });
+    });
+
+});
+</script>
+
+{% endblock %}

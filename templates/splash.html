@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Splash / Welcome Section -->
+<div class="splash-container d-flex flex-column justify-content-center align-items-center text-center">
+
+    <!-- Background Shapes -->
+    <div class="bg-shape shape1"></div>
+    <div class="bg-shape shape2"></div>
+    <div class="bg-shape shape3"></div>
+
+    <!-- Particles Container -->
+    <canvas id="particleCanvas" class="particle-canvas"></canvas>
+
+    <!-- Logo -->
+    <img src="{{ url_for('static', filename='logo.png') }}" 
+         alt="IRRS Logo" height="100" class="mb-3 animate-fade-in logo-glow">
+
+    <!-- Main Heading -->
+    <h1 class="animate-slide-down display-5 fw-bold text-glow">Intelligent Revision Recommendation System</h1>
+    <p class="text-light mb-4 animate-fade-in-delay lead">Personalized Revision for Smarter Learning</p>
+
+    <!-- Welcome Card -->
+    <div class="card mx-auto p-4 shadow-lg animate-fade-in-delay splash-card hover-shadow">
+        <h2>Welcome to IRRS 😊</h2>
+        <p>Login or Sign up to start improving your academic performance.</p>
+
+        {% if not session.get('user_id') %}
+            <a href="{{ url_for('login') }}" class="btn btn-primary w-100 mb-2 btn-lg hover-btn pulsate">Login</a>
+            <a href="{{ url_for('register') }}" class="btn btn-outline-primary w-100 btn-lg hover-btn pulsate">Sign Up</a>
+        {% else %}
+            {% if session.get('role') == 'student' %}
+                <a href="{{ url_for('student_dashboard') }}" class="btn btn-success w-100 btn-lg hover-btn">Go to Dashboard</a>
+            {% elif session.get('role') == 'lecturer' %}
+                <a href="{{ url_for('lecturer_dashboard') }}" class="btn btn-success w-100 btn-lg hover-btn">Go to Dashboard</a>
+            {% endif %}
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- Styles -->
+<style>
+/* Splash Container */
+.splash-container {
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+    padding: 2rem;
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+/* Background Shapes */
+.bg-shape { position: absolute; border-radius: 50%; opacity: 0.15; animation: float 8s ease-in-out infinite alternate; }
+.shape1 { width: 300px; height: 300px; background: #ffffff; top: -50px; left: -80px; }
+.shape2 { width: 200px; height: 200px; background: #ffea00; bottom: 20px; right: -50px; animation-duration: 10s; }
+.shape3 { width: 400px; height: 400px; background: #ff6f61; top: 150px; right: -100px; animation-duration: 12s; }
+
+@keyframes float { 0% { transform: translateY(0px) translateX(0px); } 100% { transform: translateY(-20px) translateX(20px); } }
+
+/* Particles Canvas */
+.particle-canvas { position: absolute; top:0; left:0; width:100%; height:100%; z-index:1; pointer-events:none; }
+
+/* Card Styling */
+.splash-card {
+    position: relative;
+    max-width: 420px;
+    border-radius: 15px;
+    background-color: rgba(255,255,255,0.95);
+    z-index: 10;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+.hover-shadow:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.25); }
+
+/* Buttons Hover */
+.hover-btn { transition: transform 0.2s, box-shadow 0.2s; }
+.hover-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 15px rgba(0,0,0,0.2); }
+
+/* Button Pulsate */
+.pulsate { animation: pulse 1.8s infinite; }
+@keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 5px rgba(0,0,0,0.1);} 50% { transform: scale(1.03); box-shadow: 0 0 15px rgba(0,0,0,0.25);} 100% { transform: scale(1); box-shadow: 0 0 5px rgba(0,0,0,0.1);} }
+
+/* Text Glow */
+.text-glow { text-shadow: 0 0 15px rgba(255,255,255,0.7); }
+.logo-glow { filter: drop-shadow(0 0 10px rgba(255,255,255,0.6)); }
+
+/* Animations */
+@keyframes fadeIn { 0% { opacity:0; transform:translateY(-10px);} 100% { opacity:1; transform:translateY(0); } }
+@keyframes slideDown { 0% { opacity:0; transform:translateY(-50px);} 100% { opacity:1; transform:translateY(0);} }
+.animate-fade-in { animation: fadeIn 1s ease forwards; }
+.animate-fade-in-delay { animation: fadeIn 1s ease 0.5s forwards; opacity:0; }
+.animate-slide-down { animation: slideDown 1s ease forwards; opacity:0; }
+
+@media (max-width: 576px) {
+    .splash-container h1 { font-size: 1.8rem; }
+    .splash-card { width: 90%; padding: 2rem 1rem; }
+    .splash-container p.lead { font-size: 0.9rem; }
+}
+</style>
+
+<!-- Particles JS -->
+<script>
+const canvas = document.getElementById('particleCanvas');
+const ctx = canvas.getContext('2d');
+let particlesArray = [];
+function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+class Particle {
+    constructor(){ this.x=Math.random()*canvas.width; this.y=Math.random()*canvas.height; this.size=Math.random()*3+1; this.speedX=(Math.random()-0.5)*0.5; this.speedY=(Math.random()-0.5)*0.5; this.opacity=Math.random()*0.5+0.1; }
+    update(){ this.x+=this.speedX; this.y+=this.speedY; if(this.x>canvas.width)this.x=0; if(this.x<0)this.x=canvas.width; if(this.y>canvas.height)this.y=0; if(this.y<0)this.y=canvas.height; }
+    draw(){ ctx.fillStyle=`rgba(255,255,255,${this.opacity})`; ctx.beginPath(); ctx.arc(this.x,this.y,this.size,0,Math.PI*2); ctx.fill(); }
+}
+function initParticles(){ particlesArray=[]; for(let i=0;i<100;i++){ particlesArray.push(new Particle()); } }
+function animateParticles(){ ctx.clearRect(0,0,canvas.width,canvas.height); particlesArray.forEach(p=>{ p.update(); p.draw(); }); requestAnimationFrame(animateParticles); }
+initParticles(); animateParticles();
+</script>
+
+
+{% endblock %}

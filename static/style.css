@@ -1,0 +1,208 @@
+/* ================= GENERAL STYLES ================= */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f6fb;
+    color: #333;
+}
+
+a {
+    text-decoration: none;
+    color: #2a5298;
+}
+
+header.header {
+    background-color: #2a5298;
+    color: #fff;
+    text-align: center;
+    padding: 25px 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+header.header img {
+    height: 60px;
+    margin-bottom: 10px;
+}
+
+nav.navbar {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    background-color: #1f3e7e;
+    padding: 12px 0;
+    flex-wrap: wrap;
+}
+
+nav.navbar a {
+    color: #fff;
+    font-weight: 600;
+    padding: 8px 15px;
+    border-radius: 6px;
+    transition: background 0.3s;
+}
+
+nav.navbar a:hover {
+    background-color: #2a5298;
+}
+
+main.content {
+    max-width: 1200px;
+    margin: 30px auto;
+    padding: 0 20px;
+}
+
+footer.footer {
+    text-align: center;
+    padding: 20px 0;
+    background-color: #2a5298;
+    color: #fff;
+    margin-top: 50px;
+    font-size: 0.9em;
+}
+
+/* ================= CARDS ================= */
+.card {
+    background-color: #fff;
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+/* ================= DASHBOARD CARDS ================= */
+.dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 25px;
+}
+
+.big-number {
+    font-size: 2.2em;
+    font-weight: bold;
+    color: #2a5298;
+    margin-top: 10px;
+}
+
+/* ================= FORMS ================= */
+.auth-container, .score-form {
+    background-color: #fff;
+    padding: 35px;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    max-width: 500px;
+    margin: 30px auto;
+}
+
+.auth-form label, .score-form label {
+    display: block;
+    margin: 12px 0 6px;
+    font-weight: 600;
+    color: #2a5298;
+}
+
+.auth-form input, .score-form input, .auth-form select, .score-form select {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 1em;
+    transition: border 0.2s;
+}
+
+.auth-form input:focus, .score-form input:focus,
+.auth-form select:focus, .score-form select:focus {
+    border-color: #2a5298;
+    outline: none;
+}
+
+button {
+    background-color: #2a5298;
+    color: #fff;
+    padding: 12px 22px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1em;
+    margin-top: 15px;
+    transition: background 0.3s;
+}
+
+button:hover {
+    background-color: #1f3e7e;
+}
+
+/* ================= FLASH MESSAGES ================= */
+.alert {
+    padding: 14px 18px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: 600;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+.alert.success {
+    background-color: #5cb85c;
+    color: #fff;
+}
+
+.alert.error {
+    background-color: #d9534f;
+    color: #fff;
+}
+
+/* ================= TABLES ================= */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+table, th, td {
+    border: 1px solid #ccc;
+}
+
+th, td {
+    padding: 14px;
+    text-align: left;
+}
+
+th {
+    background-color: #2a5298;
+    color: #fff;
+}
+
+/* ================= CHARTS ================= */
+.chart-container {
+    background-color: #fff;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    margin-bottom: 25px;
+}
+
+/* ================= RESPONSIVE ================= */
+@media(max-width:768px) {
+    nav.navbar {
+        flex-direction: column;
+    }
+
+    .dashboard-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-container, .score-form {
+        margin: 20px;
+        padding: 25px;
+    }
+}
