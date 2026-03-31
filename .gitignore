@@ -1,0 +1,11 @@
+.env
+instance/database
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+*.egg-info/
+.venv/
+venv/
